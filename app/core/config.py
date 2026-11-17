@@ -5,14 +5,9 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
-from urllib.parse import urlparse
 
-from pydantic import Field, SecretStr, field_validator, model_validator
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-_DISCORD_WEBHOOK_HOSTS = frozenset(
-    {"discord.com", "discordapp.com", "ptb.discord.com", "canary.discord.com"}
-)
 
 
 class Settings(BaseSettings):
@@ -52,25 +47,7 @@ class Settings(BaseSettings):
     smtp_password: SecretStr | None = None
     smtp_starttls: bool = True
     smtp_from: str = "maintenance@example.com"
-    discord_webhook_url: SecretStr | None = None
     notification_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
-
-    @field_validator("discord_webhook_url")
-    @classmethod
-    def _validate_discord_webhook(cls, value: SecretStr | None) -> SecretStr | None:
-        """Only Discord webhook URLs are accepted: prevents using the notifier for SSRF."""
-        if value is None or not value.get_secret_value():
-            return None
-        parsed = urlparse(value.get_secret_value())
-        if (
-            parsed.scheme != "https"
-            or parsed.hostname not in _DISCORD_WEBHOOK_HOSTS
-            or not parsed.path.startswith("/api/webhooks/")
-        ):
-            raise ValueError(
-                "discord_webhook_url must be an https://discord.com/api/webhooks/... URL"
-            )
-        return value
 
     @model_validator(mode="after")
     def _production_guards(self) -> Settings:

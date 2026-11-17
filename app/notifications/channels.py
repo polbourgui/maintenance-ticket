@@ -6,13 +6,9 @@ import ssl
 from collections.abc import Callable
 from email.message import EmailMessage
 
-import httpx
-
 from app.notifications.base import DeliveryResult, Notification
 
 logger = logging.getLogger(__name__)
-
-_DISCORD_MAX_LEN = 2000
 
 
 class EmailNotifier:
@@ -58,33 +54,13 @@ class EmailNotifier:
         return DeliveryResult(self.channel, delivered=True)
 
 
-class DiscordWebhookNotifier:
-    channel = "discord"
-
-    def __init__(
-        self, webhook_url: str, *, client: httpx.Client | None = None, timeout: float = 5.0
-    ) -> None:
-        self._url = webhook_url
-        self._client = client or httpx.Client(timeout=timeout)
-
-    def send(self, notification: Notification) -> DeliveryResult:
-        content = notification.public_text[:_DISCORD_MAX_LEN]
-        response = self._client.post(
-            self._url,
-            # allowed_mentions=[] neutralises @everyone/@here/role pings coming from user input.
-            json={"content": content, "allowed_mentions": {"parse": []}},
-        )
-        response.raise_for_status()
-        return DeliveryResult(self.channel, delivered=True)
-
-
 class LoggingNotifier:
     """Fallback when no channel is configured (development). Logs no personal data."""
 
     channel = "log"
 
     def send(self, notification: Notification) -> DeliveryResult:
-        logger.info("notification event=%s text=%s", notification.event, notification.public_text)
+        logger.info("notification event=%s text=%s", notification.event, notification.summary)
         return DeliveryResult(self.channel, delivered=True)
 
 

@@ -2,7 +2,7 @@
 
 API de suivi centralisé des interventions de maintenance pour un groupe d'**établissements
 recevant du public** (ERP) : création de tickets, assignation à un technicien ou à un prestataire,
-workflow de statuts, photos avant/après, notifications e-mail + Discord, tableau de bord et
+workflow de statuts, photos avant/après, notifications e-mail, tableau de bord et
 historique complet par établissement.
 
 **Stack :** Python 3.12+, FastAPI, SQLAlchemy 2 (typé), Pydantic v2, Alembic, Argon2id, JWT.
@@ -83,7 +83,7 @@ app/
 ├── repositories/   # Repository pattern + Unit of Work (seul endroit qui parle SQL)
 ├── models/         # Modèles SQLAlchemy 2 typés (Mapped[...])
 ├── schemas/        # Schémas Pydantic d'entrée/sortie (extra="forbid" sur toutes les entrées)
-├── notifications/  # Canaux (e-mail SMTP, webhook Discord, log, mémoire) + dispatcher
+├── notifications/  # Canaux (e-mail SMTP, log, mémoire) + dispatcher
 ├── storage/        # Stockage des fichiers (interface FileStorage) + assainissement des images
 └── core/           # Configuration, sécurité (hash, JWT), rate limiting, middlewares
 migrations/         # Alembic
@@ -129,16 +129,15 @@ serveur, téléchargement uniquement via l'API avec contrôle d'accès.
 
 ### Notifications
 Déclenchées sur **assignation** et **changement de statut**, envoyées en tâche de fond (la réponse
-HTTP n'attend pas SMTP/Discord) ; une panne d'un canal n'affecte pas les autres.
+HTTP n'attend pas le serveur SMTP) ; un échec d'envoi est journalisé sans faire échouer la requête.
 
 | Canal | Destinataires | Contenu |
 |---|---|---|
 | E-mail (SMTP + STARTTLS) | assigné (technicien ou prestataire) ; créateur + assigné pour les statuts | détail du ticket, en `Bcc` |
-| Discord (webhook) | canal d'équipe | **aucune donnée personnelle** ; mentions `@everyone` neutralisées |
-| Log | – | repli automatique si aucun canal n'est configuré |
+| Log | – | repli automatique si SMTP n'est pas configuré (résumé sans donnée personnelle) |
 
-`POST /api/v1/notifications/test` (admin) envoie un message de test sur tous les canaux et renvoie
-le résultat par canal.
+`POST /api/v1/notifications/test` (admin) envoie un e-mail de test à l'appelant et renvoie le
+résultat de l'envoi.
 
 ### Multi-sites, reporting et historique
 - Établissements avec type et catégorie ERP (1 à 5), rattachement des utilisateurs aux sites.
@@ -186,13 +185,13 @@ En-têtes `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permi
 CSP `default-src 'none'` et `Cache-Control: no-store` sur l'API, HSTS en production. CORS fermé par
 défaut (`*` interdit en production). Swagger désactivable (`APP_DOCS_ENABLED=false`). Toutes les
 entrées Pydantic refusent les champs inconnus (protection contre l'assignation de masse, ex.
-`"role": "admin"`). URL de webhook Discord validée (anti-SSRF), en-têtes e-mail assainis.
+`"role": "admin"`). En-têtes e-mail assainis.
 
 ## Conformité RGPD
 
 | Principe | Mise en œuvre |
 |---|---|
-| Minimisation | Utilisateur : e-mail, nom, téléphone optionnel. Pas de nom de fichier d'origine ni de métadonnées photo. Discord ne reçoit aucune donnée personnelle ; les autres utilisateurs ne voient que le nom de l'assigné. |
+| Minimisation | Utilisateur : e-mail, nom, téléphone optionnel. Pas de nom de fichier d'origine ni de métadonnées photo. Les logs ne contiennent aucune donnée personnelle ; les autres utilisateurs ne voient que le nom de l'assigné. |
 | Droit d'accès / portabilité (art. 15, 20) | `GET /users/me/export` : profil, tickets créés, actions réalisées, sessions actives (JSON). |
 | Droit à l'effacement (art. 17) | `DELETE /users/me` ou `POST /users/{id}/anonymize` (admin) : e-mail, nom, téléphone remplacés de façon irréversible, sessions révoquées, compte désactivé, plus aucune notification. |
 | Limitation de conservation | Les registres de maintenance d'un ERP relèvent d'une obligation légale (registre de sécurité) : les tickets sont **conservés** mais liés à un identifiant opaque après anonymisation. Refresh tokens expirés après 7 jours. |
@@ -211,7 +210,6 @@ Toutes les variables sont préfixées par `APP_` (voir `.env.example`). Principa
 | `APP_DATABASE_URL` | `sqlite:///./maintenance.db` | PostgreSQL recommandé en production (`pip install -e ".[postgres]"`) |
 | `APP_ENVIRONMENT` | `development` | `production` active HSTS et des garde-fous de configuration |
 | `APP_SMTP_HOST`, `APP_SMTP_*` | – | Active le canal e-mail |
-| `APP_DISCORD_WEBHOOK_URL` | – | Active le canal Discord |
 | `APP_MAX_UPLOAD_BYTES` | 10 Mo | Taille max d'une photo |
 | `APP_LOGIN_MAX_ATTEMPTS` / `APP_LOGIN_WINDOW_SECONDS` | 5 / 300 | Anti brute-force |
 

@@ -69,17 +69,5 @@ def test_rate_limiter_sliding_window() -> None:
 def test_settings_validation() -> None:
     with pytest.raises(ValidationError):
         Settings(secret_key=SecretStr("too-short"))
-    with pytest.raises(ValidationError, match="discord"):
-        Settings(
-            secret_key=SECRET, discord_webhook_url=SecretStr("https://evil.example/api/webhooks/1")
-        )
-    with pytest.raises(ValidationError, match="discord"):
-        Settings(
-            secret_key=SECRET, discord_webhook_url=SecretStr("http://discord.com/api/webhooks/1/x")
-        )
-    ok = Settings(
-        secret_key=SECRET, discord_webhook_url=SecretStr("https://discord.com/api/webhooks/1/abc")
-    )
-    assert ok.discord_webhook_url is not None
     with pytest.raises(ValidationError, match="CORS"):
         Settings(secret_key=SECRET, environment="production", cors_origins=["*"])

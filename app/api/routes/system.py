@@ -26,7 +26,7 @@ def send_test_notification(
     policy: Annotated[AccessPolicy, Depends(require(Permission.NOTIFICATION_TEST))],
     dispatcher: Annotated[NotificationDispatcher, Depends(get_dispatcher)],
 ) -> list[NotificationTestResult]:
-    """Send a test notification on every configured channel (e-mail to the caller, Discord)."""
+    """Send a test notification on every configured channel (e-mail to the caller)."""
     results = dispatcher.dispatch(test_notification(policy.user.email))
     return [
         NotificationTestResult(channel=r.channel, delivered=r.delivered, detail=r.detail)

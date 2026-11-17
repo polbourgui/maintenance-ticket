@@ -26,7 +26,7 @@ public (ERP).
 
 * Authentification : OAuth2 *password flow* → JWT d'accès court + refresh token rotatif.
 * RBAC : `admin`, `technician`, `client`, cloisonnement par établissement.
-* Notifications e-mail & Discord sur assignation et changement de statut.
+* Notifications e-mail sur assignation et changement de statut.
 """
 
 

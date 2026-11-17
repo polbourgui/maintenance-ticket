@@ -101,7 +101,7 @@ def assign_ticket(
     ticket_id: uuid.UUID, body: TicketAssignment, policy: Policy, tickets: TicketServiceDep
 ) -> TicketRead:
     """Assign to a technician **or** an external provider (both null = unassign).
-    Sends an e-mail to the assignee and a Discord alert."""
+    Sends an e-mail to the assignee."""
     return TicketRead.from_entity(tickets.assign(policy, ticket_id, body))
 
 
@@ -111,7 +111,7 @@ def change_status(
 ) -> TicketRead:
     """Workflow: todo → in_progress | blocked ; in_progress → todo | blocked | done ;
     blocked → todo | in_progress ; done → in_progress (admin reopen).
-    Blocking requires a comment. Notifies creator & assignee (e-mail) and Discord."""
+    Blocking requires a comment. Notifies creator & assignee by e-mail."""
     return TicketRead.from_entity(tickets.change_status(policy, ticket_id, body))
 
 

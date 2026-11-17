@@ -14,8 +14,8 @@ STATUS_LABELS: dict[TicketStatus, str] = {
 
 
 def _sanitize(text: str, max_len: int = 120) -> str:
-    """Single line, no markdown/mention tricks on shared channels."""
-    cleaned = " ".join(text.split()).replace("@", "@\u200b").replace("`", "'")
+    """Single line, bounded length (used in e-mail subjects and log summaries)."""
+    cleaned = " ".join(text.split())
     return cleaned if len(cleaned) <= max_len else cleaned[: max_len - 1] + "…"
 
 
@@ -46,7 +46,7 @@ def assignment_notification(ticket: Ticket) -> Notification:
             f"Priorité : {ticket.priority.value}\n"
             f"Statut : {STATUS_LABELS[ticket.status]}\n"
         ),
-        public_text=(
+        summary=(
             f"📌 [{ticket.site.code}] Ticket {_ref(ticket)} « {title} » "
             f"assigné à un {kind} (priorité {ticket.priority.value})."
         ),
@@ -73,7 +73,7 @@ def status_change_notification(
         event="ticket.status_changed",
         subject=f"[{ticket.site.code}] Ticket {_ref(ticket)} : {old} → {new}",
         body=body,
-        public_text=f"🔄 [{ticket.site.code}] Ticket {_ref(ticket)} « {title} » : {old} → {new}.",
+        summary=f"🔄 [{ticket.site.code}] Ticket {_ref(ticket)} « {title} » : {old} → {new}.",
         email_recipients=tuple(sorted(r for r in recipients if not r.endswith(".invalid"))),
     )
 
@@ -83,6 +83,6 @@ def test_notification(recipient_email: str) -> Notification:
         event="notification.test",
         subject="[ERP Maintenance] Notification de test",
         body="Ceci est une notification de test. La configuration des alertes fonctionne.",
-        public_text="✅ Notification de test : la configuration des alertes fonctionne.",
+        summary="✅ Notification de test : la configuration des alertes fonctionne.",
         email_recipients=(recipient_email,),
     )

@@ -52,9 +52,9 @@ def test_create_assign_and_notify(
     assert sent.event == "ticket.assigned"
     assert sent.email_recipients == ("tech.a@example.org",)
     assert "ERP-A" in sent.subject
-    # GDPR: the shared Discord channel never receives personal data
-    assert "@" not in sent.public_text
-    assert world.tech_a.full_name not in sent.public_text
+    # GDPR: the log summary never contains personal data
+    assert "@" not in sent.summary
+    assert world.tech_a.full_name not in sent.summary
 
 
 def test_full_workflow_and_history(
@@ -149,7 +149,7 @@ def test_assign_to_external_provider_notifies_provider(
     assert r.json()["assignee"]["type"] == "provider"
     assert r.json()["assignee"]["display_name"] == "Ascenseurs SA"
     assert notifier.sent[-1].email_recipients == ("sav@ascenseurs.example",)
-    assert "prestataire externe" in notifier.sent[-1].public_text
+    assert "prestataire externe" in notifier.sent[-1].summary
 
 
 def test_assignment_validation(world: World, make_ticket: TicketFactory) -> None:

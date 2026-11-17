@@ -1,17 +1,13 @@
 from __future__ import annotations
 
-import json
 import smtplib
 from typing import Any
 
-import httpx
-import pytest
 from pydantic import SecretStr
 
 from app.core.config import Settings
 from app.notifications import (
     DeliveryResult,
-    DiscordWebhookNotifier,
     EmailNotifier,
     InMemoryNotifier,
     LoggingNotifier,
@@ -24,7 +20,7 @@ NOTIF = Notification(
     event="ticket.assigned",
     subject="[ERP-A] Ticket\r\nBcc: attacker@example.org",
     body="Corps",
-    public_text="@everyone ticket assigné",
+    summary="ticket assigné",
     email_recipients=("a@example.org", "b@example.org"),
 )
 
@@ -78,31 +74,8 @@ def test_email_notifier() -> None:
 
 def test_email_notifier_skips_without_recipient() -> None:
     notifier = EmailNotifier(host="h", port=25, sender="s@example.org", smtp_factory=FakeSMTP)  # type: ignore[arg-type]
-    n = Notification(event="e", subject="s", body="b", public_text="p")
+    n = Notification(event="e", subject="s", body="b", summary="p")
     assert notifier.send(n).delivered is False
-
-
-def test_discord_notifier_payload() -> None:
-    captured: list[httpx.Request] = []
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        captured.append(request)
-        return httpx.Response(204)
-
-    client = httpx.Client(transport=httpx.MockTransport(handler))
-    notifier = DiscordWebhookNotifier("https://discord.com/api/webhooks/1/x", client=client)
-    assert notifier.send(NOTIF).delivered
-    payload = json.loads(captured[0].content)
-    assert payload["content"] == "@everyone ticket assigné"
-    assert payload["allowed_mentions"] == {"parse": []}  # mass mentions neutralised
-    assert "a@example.org" not in captured[0].content.decode()  # no PII on Discord
-
-
-def test_discord_notifier_raises_on_http_error() -> None:
-    client = httpx.Client(transport=httpx.MockTransport(lambda _r: httpx.Response(500)))
-    notifier = DiscordWebhookNotifier("https://discord.com/api/webhooks/1/x", client=client)
-    with pytest.raises(httpx.HTTPStatusError):
-        notifier.send(NOTIF)
 
 
 class BrokenNotifier:
@@ -131,10 +104,9 @@ def test_build_dispatcher_from_settings() -> None:
         Settings(
             secret_key=secret,
             smtp_host="smtp.example.org",
-            discord_webhook_url=SecretStr("https://discord.com/api/webhooks/1/x"),
         )
     )
-    assert [n.channel for n in full.notifiers] == ["email", "discord"]
+    assert [n.channel for n in full.notifiers] == ["email"]
 
 
 def test_smtp_factory_default_is_smtplib() -> None:

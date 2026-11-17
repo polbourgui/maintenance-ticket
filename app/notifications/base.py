@@ -8,14 +8,14 @@ from typing import Protocol
 class Notification:
     """Channel-agnostic message, built *before* the DB session closes (plain data only).
 
-    GDPR: ``email_recipients`` are only used by the e-mail channel. ``public_text`` is what is
-    posted on shared channels (Discord) and must never contain personal data.
+    GDPR: ``email_recipients`` are only used by the e-mail channel. ``summary`` is a one-line
+    description written to logs and must never contain personal data.
     """
 
     event: str
     subject: str
     body: str
-    public_text: str
+    summary: str
     email_recipients: tuple[str, ...] = field(default_factory=tuple)
 
 
@@ -33,6 +33,6 @@ class Notifier(Protocol):
 
 
 class NotificationScheduler(Protocol):
-    """Defers delivery so that slow SMTP/Discord calls never block the HTTP response."""
+    """Defers delivery so that slow SMTP calls never block the HTTP response."""
 
     def schedule(self, notification: Notification) -> None: ...

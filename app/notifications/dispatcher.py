@@ -7,7 +7,7 @@ from fastapi import BackgroundTasks
 
 from app.core.config import Settings
 from app.notifications.base import DeliveryResult, Notification, Notifier
-from app.notifications.channels import DiscordWebhookNotifier, EmailNotifier, LoggingNotifier
+from app.notifications.channels import EmailNotifier, LoggingNotifier
 
 logger = logging.getLogger(__name__)
 
@@ -68,13 +68,6 @@ def build_dispatcher(settings: Settings) -> NotificationDispatcher:
                 if settings.smtp_password
                 else None,
                 starttls=settings.smtp_starttls,
-                timeout=settings.notification_timeout_seconds,
-            )
-        )
-    if settings.discord_webhook_url:
-        notifiers.append(
-            DiscordWebhookNotifier(
-                settings.discord_webhook_url.get_secret_value(),
                 timeout=settings.notification_timeout_seconds,
             )
         )

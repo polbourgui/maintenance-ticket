@@ -1,27 +1,49 @@
 # Tickets de maintenance ERP
 
-API de suivi centralisé des interventions de maintenance pour un groupe d'**établissements
+Application de suivi centralisé des interventions de maintenance pour un groupe d'**établissements
 recevant du public** (ERP) : création de tickets, assignation à un technicien ou à un prestataire,
 workflow de statuts, photos avant/après, notifications e-mail, tableau de bord et
 historique complet par établissement.
 
-**Stack :** Python 3.12+, FastAPI, SQLAlchemy 2 (typé), Pydantic v2, Alembic, Argon2id, JWT.
+**Backend :** Python 3.12+, FastAPI, SQLAlchemy 2 (typé), Pydantic v2, Alembic, Argon2id, JWT.
+**Frontend :** React 19 + TypeScript, Vite, TanStack Query, types générés depuis l'OpenAPI.
 
 ---
 
 ## Démarrage rapide
 
+Prérequis : Python 3.12+ et Node.js 22+. Les commandes sont données pour **Windows PowerShell**
+(sous Linux/macOS : `source .venv/bin/activate` et `cp` au lieu de `Copy-Item`).
+
+### 1. Backend
+
 ```bash
-python -m venv .venv && source .venv/bin/activate
+python -m venv .venv
+```
+
+```bash
+.venv\Scripts\Activate.ps1
+```
+
+```bash
 pip install -e ".[dev]"
-cp .env.example .env    # puis renseigner APP_SECRET_KEY
+```
+
+```bash
+Copy-Item .env.example .env
+```
+
+Générer une clé secrète et l'écrire dans `.env` (≥ 32 caractères, jamais partagée) :
+
+```bash
+(Get-Content .env) -replace '^APP_SECRET_KEY=.*', "APP_SECRET_KEY=$(python -c 'import secrets; print(secrets.token_urlsafe(48))')" | Set-Content .env
 ```
 
 ```bash
 alembic upgrade head
 ```
 
-Création du premier administrateur (le mot de passe n'est jamais passé en argument) :
+Création du premier administrateur (le mot de passe est demandé, jamais passé en argument) :
 
 ```bash
 python -m app.cli create-admin --email admin@example.org --full-name "Responsable maintenance"
@@ -31,10 +53,45 @@ python -m app.cli create-admin --email admin@example.org --full-name "Responsabl
 uvicorn app.main:create_app --factory --reload
 ```
 
-Documentation interactive : <http://localhost:8000/docs> (Swagger) et `/redoc`. Le bouton
-**Authorize** de Swagger utilise directement le flux OAuth2 *password* de `/api/v1/auth/login`.
+Documentation de l'API : <http://localhost:8000/docs> (Swagger) et `/redoc`.
 
-Avec Docker (PostgreSQL recommandé en production) :
+### 2. Frontend (développement), dans un second terminal
+
+```bash
+cd frontend
+```
+
+```bash
+npm install
+```
+
+```bash
+npm run dev
+```
+
+Ouvrir <http://localhost:5173>. Vite redirige `/api` vers le backend (même origine : le cookie de
+session fonctionne sans CORS).
+
+### 3. Tester les e-mails en local (optionnel)
+
+Dans `.env` : `APP_SMTP_HOST=localhost`, `APP_SMTP_PORT=1025`, `APP_SMTP_STARTTLS=false`, puis dans
+un troisième terminal (venv activé) :
+
+```bash
+pip install aiosmtpd
+```
+
+```bash
+python -m aiosmtpd -n -l localhost:1025
+```
+
+Chaque e-mail envoyé par l'application s'affiche dans ce terminal (les destinataires sont en `Bcc`,
+donc absents des en-têtes affichés).
+
+### Production : un seul service
+
+`npm run build` produit `frontend/dist` ; avec `APP_FRONTEND_DIST=./frontend/dist`, FastAPI sert
+l'interface sur `/` et l'API sur `/api/v1`. L'image Docker fait tout cela (build multi-étapes) :
 
 ```bash
 docker build -t erp-maintenance .
@@ -62,6 +119,15 @@ pytest --cov
 APP_DATABASE_URL=sqlite:///./check.db alembic upgrade head && APP_DATABASE_URL=sqlite:///./check.db alembic check
 ```
 
+Frontend (dans `frontend/`) :
+
+```bash
+npm run lint && npm run typecheck && npm test && npm run build
+```
+
+Les types TypeScript de l'API (`frontend/src/api/schema.d.ts`) sont **générés** depuis le schéma
+OpenAPI du backend avec `npm run gen:api` ; la CI échoue s'ils ne sont plus synchronisés.
+
 Ces mêmes étapes tournent dans la CI GitHub Actions (`.github/workflows/ci.yml`), avec un seuil de
 couverture à 90 %. `mypy` est en mode `strict` sur `app/` **et** `tests/`.
 
@@ -88,6 +154,12 @@ app/
 └── core/           # Configuration, sécurité (hash, JWT), rate limiting, middlewares
 migrations/         # Alembic
 tests/{unit,integration}
+frontend/src/
+├── api/            # Client typé (openapi-fetch), session (token en mémoire + refresh), types générés
+├── auth/           # Contexte d'authentification, miroir de la matrice RBAC (affichage uniquement)
+├── components/     # Layout, composants d'interface, images protégées (AuthImage)
+├── pages/          # Tickets, détail, création, tableau de bord, sites, utilisateurs, prestataires, compte
+└── lib/            # Libellés français, formatage
 ```
 
 Flux d'une requête : `route → dépendances (auth + AccessPolicy) → service → repositories (UnitOfWork)
@@ -175,6 +247,11 @@ service) :
   obligatoires ; l'utilisateur est rechargé à chaque requête (compte désactivé = accès coupé).
 - **Refresh token** opaque, stocké uniquement haché (SHA-256), **rotation** à chaque usage et
   **détection de rejeu** : réutiliser un ancien refresh token révoque toute la famille de session.
+- Côté navigateur, le refresh token est un **cookie `HttpOnly`, `SameSite=Strict`** (`Secure` en
+  production), limité à `/api/v1/auth` : aucun script ne peut le lire. L'access token ne vit qu'en
+  mémoire (jamais dans `localStorage`, règle ESLint à l'appui) ; au rechargement de la page, la
+  session est restaurée via le cookie. Les clients API (Swagger, scripts) reçoivent aussi les tokens
+  dans le corps JSON.
 - `POST /auth/logout`, `POST /auth/logout-all` ; changement de mot de passe, changement de rôle ou
   désactivation invalident **tous** les tokens (compteur `token_version`).
 - Anti brute-force : limitation par (IP, e-mail) et par e-mail → `429` + `Retry-After` ; messages
@@ -182,7 +259,9 @@ service) :
 
 ### Durcissement HTTP
 En-têtes `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`,
-CSP `default-src 'none'` et `Cache-Control: no-store` sur l'API, HSTS en production. CORS fermé par
+CSP `default-src 'none'` et `Cache-Control: no-store` sur l'API ; CSP stricte pour l'interface
+(`script-src 'self'`, aucun script inline, photos affichées via URL `blob:` après téléchargement
+authentifié) ; HSTS en production. ESLint interdit `dangerouslySetInnerHTML`. CORS fermé par
 défaut (`*` interdit en production). Swagger désactivable (`APP_DOCS_ENABLED=false`). Toutes les
 entrées Pydantic refusent les champs inconnus (protection contre l'assignation de masse, ex.
 `"role": "admin"`). En-têtes e-mail assainis.
@@ -221,5 +300,5 @@ Toutes les variables sont préfixées par `APP_` (voir `.env.example`). Principa
 - Notifications via `BackgroundTasks` (même processus) : pour garantir la livraison en cas de
   redémarrage, passer à une file (outbox + worker).
 - Stockage local des photos : une implémentation S3 de `FileStorage` est conseillée en production.
-- Le refresh token est renvoyé dans le corps JSON ; pour un front web, préférer un cookie
-  `HttpOnly; Secure; SameSite=Strict`.
+- Interface : pas encore d'édition d'un ticket existant (l'API `PATCH /tickets/{id}` existe), ni de
+  mode hors ligne pour les techniciens sur le terrain (PWA).

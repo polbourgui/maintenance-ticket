@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     upload_dir: Path = Path("./var/uploads")
     max_upload_bytes: int = Field(default=10 * 1024 * 1024, ge=1024)
 
+    # --- Web app ------------------------------------------------------------------------
+    # Directory of the built frontend (frontend/dist). When set, FastAPI serves it on "/".
+    frontend_dist: Path | None = None
+
     # --- Notifications ------------------------------------------------------------------
     smtp_host: str | None = None
     smtp_port: int = 587

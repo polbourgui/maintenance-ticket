@@ -77,6 +77,7 @@ class TicketRead(BaseModel):
     status: TicketStatus
     location: TicketLocation
     created_by_id: uuid.UUID
+    created_by_name: str
     assignee: AssigneeRead | None
     started_at: datetime | None
     closed_at: datetime | None
@@ -113,6 +114,7 @@ class TicketRead(BaseModel):
                 details=ticket.location_details,
             ),
             created_by_id=ticket.created_by_id,
+            created_by_name=ticket.created_by.full_name,
             assignee=assignee,
             started_at=ticket.started_at,
             closed_at=ticket.closed_at,
@@ -127,6 +129,7 @@ class TicketEventRead(BaseModel):
     id: uuid.UUID
     ticket_id: uuid.UUID
     actor_id: uuid.UUID | None
+    actor_name: str | None
     event_type: TicketEventType
     from_status: TicketStatus | None
     to_status: TicketStatus | None

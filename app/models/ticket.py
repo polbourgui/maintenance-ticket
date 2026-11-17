@@ -90,6 +90,12 @@ class TicketEvent(UUIDPrimaryKeyMixin, Base):
     details: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(default=utcnow, index=True)
 
+    actor: Mapped[User | None] = relationship(lazy="joined")
+
+    @property
+    def actor_name(self) -> str | None:
+        return self.actor.full_name if self.actor is not None else None
+
 
 class TicketPhoto(UUIDPrimaryKeyMixin, Base):
     __tablename__ = "ticket_photos"

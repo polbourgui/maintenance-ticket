@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import models  # noqa: F401  (registers tables)
 from app.api.errors import register_error_handlers
 from app.api.routes import auth, reports, sites, system, tickets, users
+from app.api.spa import mount_spa
 from app.core.config import Settings, get_settings
 from app.core.middleware import SecurityHeadersMiddleware
 from app.core.rate_limit import InMemoryRateLimiter
@@ -70,7 +71,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         settings.login_max_attempts, settings.login_window_seconds
     )
 
-    app.add_middleware(SecurityHeadersMiddleware, hsts=settings.is_production)
+    app.add_middleware(
+        SecurityHeadersMiddleware, hsts=settings.is_production, api_prefix=settings.api_prefix
+    )
     if settings.cors_origins:
         app.add_middleware(
             CORSMiddleware,
@@ -93,4 +96,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     ):
         api.include_router(router)
     app.include_router(api)
+    if settings.frontend_dist is not None:
+        mount_spa(app, settings.frontend_dist, api_prefix=settings.api_prefix)
     return app

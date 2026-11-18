@@ -26,6 +26,10 @@ const STATUS_MESSAGES: Record<number, string> = {
   409: "Conflit : l'élément existe déjà ou a été modifié entre-temps. Rechargez la page.",
   413: "Fichier trop volumineux.",
   429: "Trop de tentatives. Réessayez dans quelques minutes.",
+  500: "Erreur interne du serveur. Le détail est affiché dans le terminal du backend.",
+  502: "Le serveur ne répond pas. Vérifiez que le backend (uvicorn) est démarré.",
+  503: "Le serveur est momentanément indisponible. Réessayez dans un instant.",
+  504: "Le serveur met trop de temps à répondre. Réessayez dans un instant.",
 };
 
 type ValidationItem = { loc?: (string | number)[]; msg?: string };

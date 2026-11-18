@@ -21,6 +21,11 @@ describe("toApiError", () => {
     expect(toApiError(429, null).message).toContain("Trop de tentatives");
   });
 
+  it("explains server-side failures instead of a generic message", () => {
+    expect(toApiError(502, null).message).toContain("backend (uvicorn) est démarré");
+    expect(toApiError(500, null).message).toContain("terminal du backend");
+  });
+
   it("describes network failures", () => {
     expect(errorMessage(new TypeError("Failed to fetch"))).toBe("Impossible de joindre le serveur.");
     expect(errorMessage(new ApiError(404, "Introuvable"))).toBe("Introuvable");

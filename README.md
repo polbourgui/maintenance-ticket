@@ -205,7 +205,7 @@ HTTP n'attend pas le serveur SMTP) ; un échec d'envoi est journalisé sans fair
 
 | Canal | Destinataires | Contenu |
 |---|---|---|
-| E-mail (SMTP + STARTTLS) | assigné (technicien ou prestataire) ; créateur + assigné pour les statuts | détail du ticket, en `Bcc` |
+| E-mail (SMTP + STARTTLS) | assigné (technicien ou prestataire) ; créateur + assigné pour les statuts | établissement, localisation complète, priorité, statut, description (assignation) ou commentaire (statut), en `Bcc` |
 | Log | – | repli automatique si SMTP n'est pas configuré (résumé sans donnée personnelle) |
 
 `POST /api/v1/notifications/test` (admin) envoie un e-mail de test à l'appelant et renvoie le
@@ -300,5 +300,4 @@ Toutes les variables sont préfixées par `APP_` (voir `.env.example`). Principa
 - Notifications via `BackgroundTasks` (même processus) : pour garantir la livraison en cas de
   redémarrage, passer à une file (outbox + worker).
 - Stockage local des photos : une implémentation S3 de `FileStorage` est conseillée en production.
-- Interface : pas encore d'édition d'un ticket existant (l'API `PATCH /tickets/{id}` existe), ni de
-  mode hors ligne pour les techniciens sur le terrain (PWA).
+- Interface : pas encore de mode hors ligne pour les techniciens sur le terrain (PWA).

@@ -26,12 +26,25 @@ export const PHOTO_KIND_LABELS: Record<PhotoKind, string> = { before: "Avant", a
 export const STATUSES = Object.keys(STATUS_LABELS) as TicketStatus[];
 export const PRIORITIES = Object.keys(PRIORITY_LABELS) as TicketPriority[];
 
+const FIELD_LABELS: Record<string, string> = {
+  title: "titre",
+  description: "description",
+  priority: "priorité",
+  location_building: "localisation",
+  location_floor: "localisation",
+  location_room: "localisation",
+  location_details: "localisation",
+};
+
 export function describeEvent(event: TicketEvent): string {
   switch (event.event_type) {
     case "created":
       return "Ticket créé";
-    case "updated":
-      return "Ticket modifié";
+    case "updated": {
+      const fields = Array.isArray(event.details.fields) ? (event.details.fields as string[]) : [];
+      const labels = [...new Set(fields.map((f) => FIELD_LABELS[f] ?? f))];
+      return labels.length ? `Ticket modifié : ${labels.join(", ")}` : "Ticket modifié";
+    }
     case "assigned":
       return event.details.assignee_type === "provider"
         ? "Assigné à un prestataire externe"

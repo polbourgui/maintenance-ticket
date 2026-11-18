@@ -10,6 +10,7 @@ import type { PhotoKind, Ticket, TicketPhoto, TicketStatus, User } from "../api/
 import { useCurrentUser } from "../auth/AuthContext";
 import { availableTransitions, can } from "../auth/permissions";
 import { AuthImage } from "../components/AuthImage";
+import { TicketEditForm } from "../components/TicketEditForm";
 import { Card, Empty, ErrorAlert, Field, Loading, PriorityBadge, StatusBadge } from "../components/ui";
 import {
   PHOTO_KIND_LABELS,
@@ -23,6 +24,8 @@ export function TicketDetailPage() {
   const { ticketId = "" } = useParams();
   const user = useCurrentUser();
   const siteMap = useSiteMap();
+  const [editing, setEditing] = useState(false);
+  const onUpdated = useTicketUpdated(ticketId);
   const ticket = useQuery({
     queryKey: ["ticket", ticketId],
     queryFn: () =>
@@ -59,7 +62,28 @@ export function TicketDetailPage() {
 
       <div className="detail-grid">
         <div className="stack">
-          <Card title="Détails">
+          {editing ? (
+            <Card title="Modifier le ticket">
+              <TicketEditForm
+                ticket={t}
+                onCancel={() => setEditing(false)}
+                onSaved={(updated) => {
+                  onUpdated(updated);
+                  setEditing(false);
+                }}
+              />
+            </Card>
+          ) : (
+          <Card
+            title="Détails"
+            actions={
+              can.editTicket(user) && !t.archived_at ? (
+                <button className="btn btn-ghost btn-sm" onClick={() => setEditing(true)}>
+                  Modifier
+                </button>
+              ) : undefined
+            }
+          >
             <dl className="details">
               <dt>Établissement</dt>
               <dd>{site ? <Link to={`/sites/${site.id}`}>{site.code} — {site.name}</Link> : "—"}</dd>
@@ -85,6 +109,7 @@ export function TicketDetailPage() {
             </dl>
             <p className="description">{t.description}</p>
           </Card>
+          )}
           <PhotosCard ticket={t} user={user} />
           <HistoryCard ticketId={t.id} />
         </div>

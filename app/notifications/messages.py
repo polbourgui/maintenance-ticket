@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.models import Ticket, TicketStatus
+from app.models import Ticket, TicketPriority, TicketStatus
 from app.notifications.base import Notification
 
 STATUS_LABELS: dict[TicketStatus, str] = {
@@ -11,6 +11,15 @@ STATUS_LABELS: dict[TicketStatus, str] = {
     TicketStatus.BLOCKED: "Bloqué",
     TicketStatus.DONE: "Terminé",
 }
+
+PRIORITY_LABELS: dict[TicketPriority, str] = {
+    TicketPriority.LOW: "Basse",
+    TicketPriority.MEDIUM: "Moyenne",
+    TicketPriority.HIGH: "Haute",
+    TicketPriority.CRITICAL: "Critique",
+}
+
+_DESCRIPTION_MAX = 1000
 
 
 def _sanitize(text: str, max_len: int = 120) -> str:
@@ -21,6 +30,30 @@ def _sanitize(text: str, max_len: int = 120) -> str:
 
 def _ref(ticket: Ticket) -> str:
     return f"#{str(ticket.id)[:8]}"
+
+
+def _location(ticket: Ticket) -> str:
+    """Full location, e.g. "Bât. A · RDC · Hall (près de l'issue Est)"."""
+    parts = [ticket.location_building, ticket.location_floor, ticket.location_room]
+    text = " · ".join(_sanitize(p) for p in parts if p)
+    if ticket.location_details:
+        text += f" ({_sanitize(ticket.location_details, 300)})"
+    return text
+
+
+def _ticket_facts(ticket: Ticket) -> str:
+    return (
+        f"Établissement : {ticket.site.name} ({ticket.site.code})\n"
+        f"Localisation : {_location(ticket)}\n"
+        f"Priorité : {PRIORITY_LABELS[ticket.priority]}\n"
+    )
+
+
+def _description(ticket: Ticket) -> str:
+    text = ticket.description.strip()
+    if len(text) > _DESCRIPTION_MAX:
+        text = text[: _DESCRIPTION_MAX - 1] + "…"
+    return f"\nDescription :\n{text}\n"
 
 
 def _assignee_email(ticket: Ticket) -> str | None:
@@ -40,15 +73,14 @@ def assignment_notification(ticket: Ticket) -> Notification:
         subject=f"[{ticket.site.code}] Ticket {_ref(ticket)} vous a été assigné : {title}",
         body=(
             "Bonjour,\n\n"
-            f"Le ticket {_ref(ticket)} « {title} » vous a été assigné.\n"
-            f"Établissement : {ticket.site.name} ({ticket.site.code})\n"
-            f"Localisation : {ticket.location_room}\n"
-            f"Priorité : {ticket.priority.value}\n"
+            f"Le ticket {_ref(ticket)} « {title} » vous a été assigné.\n\n"
+            f"{_ticket_facts(ticket)}"
             f"Statut : {STATUS_LABELS[ticket.status]}\n"
+            f"{_description(ticket)}"
         ),
         summary=(
             f"📌 [{ticket.site.code}] Ticket {_ref(ticket)} « {title} » "
-            f"assigné à un {kind} (priorité {ticket.priority.value})."
+            f"assigné à un {kind} (priorité {PRIORITY_LABELS[ticket.priority].lower()})."
         ),
         email_recipients=(recipient,) if recipient else (),
     )
@@ -64,8 +96,8 @@ def status_change_notification(
     old, new = STATUS_LABELS[previous], STATUS_LABELS[ticket.status]
     body = (
         "Bonjour,\n\n"
-        f"Le ticket {_ref(ticket)} « {title} » est passé de « {old} » à « {new} ».\n"
-        f"Établissement : {ticket.site.name} ({ticket.site.code})\n"
+        f"Le ticket {_ref(ticket)} « {title} » est passé de « {old} » à « {new} ».\n\n"
+        f"{_ticket_facts(ticket)}"
     )
     if comment:
         body += f"Commentaire : {comment}\n"

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import smtplib
+import uuid
 from typing import Any
 
 from pydantic import SecretStr
 
 from app.core.config import Settings
+from app.models import Site, Ticket, TicketPriority, TicketStatus, User
 from app.notifications import (
     DeliveryResult,
     EmailNotifier,
@@ -15,6 +17,7 @@ from app.notifications import (
     NotificationDispatcher,
     build_dispatcher,
 )
+from app.notifications.messages import assignment_notification
 
 NOTIF = Notification(
     event="ticket.assigned",
@@ -112,3 +115,26 @@ def test_build_dispatcher_from_settings() -> None:
 def test_smtp_factory_default_is_smtplib() -> None:
     notifier = EmailNotifier(host="h", port=25, sender="s@example.org")
     assert notifier._smtp_factory is smtplib.SMTP
+
+
+def test_message_location_and_long_description() -> None:
+    site = Site(code="ERP-1", name="Médiathèque")
+    assignee = User(email="tech@example.org", full_name="Tech")
+    ticket = Ticket(
+        id=uuid.uuid4(),
+        title="Fuite",
+        description="x" * 5000,
+        priority=TicketPriority.LOW,
+        status=TicketStatus.TODO,
+        location_room="Hall",
+        location_building=None,
+        location_floor="RDC",
+        location_details="près de\nl'issue Est",
+    )
+    ticket.site = site
+    ticket.assignee_user = assignee
+    message = assignment_notification(ticket)
+    assert "Localisation : RDC · Hall (près de l'issue Est)\n" in message.body
+    assert "Priorité : Basse" in message.body
+    assert "x" * 999 + "…" in message.body
+    assert "x" * 1000 not in message.body

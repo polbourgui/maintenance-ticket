@@ -52,6 +52,11 @@ def test_create_assign_and_notify(
     assert sent.event == "ticket.assigned"
     assert sent.email_recipients == ("tech.a@example.org",)
     assert "ERP-A" in sent.subject
+    # Full location, French priority and the description so the assignee knows what to do
+    assert "Localisation : Bât. principal · R+1 · Local SSI\n" in sent.body
+    assert "Priorité : Haute\n" in sent.body
+    assert "Le SSI affiche un défaut sur la zone 3." in sent.body
+    assert "priorité haute" in sent.summary
     # GDPR: the log summary never contains personal data
     assert "@" not in sent.summary
     assert world.tech_a.full_name not in sent.summary
@@ -97,6 +102,9 @@ def test_full_workflow_and_history(
     assert len(status_events) == 4
     assert set(status_events[-1].email_recipients) == {"client.a@example.org", "tech.a@example.org"}
     assert "En cours → Terminé" in status_events[-1].subject
+    assert "Localisation : Bât. principal · R+1 · Local SSI" in status_events[-1].body
+    assert "Priorité : Haute" in status_events[-1].body
+    assert "Commentaire : Détecteur remplacé" in status_events[-1].body
 
     # Archive
     r = world.client.post(f"{API}/tickets/{tid}/archive", headers=world.headers(world.admin))

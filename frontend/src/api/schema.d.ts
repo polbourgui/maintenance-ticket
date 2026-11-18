@@ -2481,7 +2481,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Content Too Large */
+            /** @description File too large */
             413: {
                 headers: {
                     [name: string]: unknown;

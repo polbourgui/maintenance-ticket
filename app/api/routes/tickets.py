@@ -137,7 +137,7 @@ def ticket_history(
     "/{ticket_id}/photos",
     response_model=TicketPhotoRead,
     status_code=status.HTTP_201_CREATED,
-    responses={413: {"model": ErrorResponse}},
+    responses={413: {"model": ErrorResponse, "description": "File too large"}},
 )
 async def upload_photo(
     ticket_id: uuid.UUID,

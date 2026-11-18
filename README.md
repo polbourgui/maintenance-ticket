@@ -49,6 +49,13 @@ Création du premier administrateur (le mot de passe est demandé, jamais passé
 python -m app.cli create-admin --email admin@example.org --full-name "Responsable maintenance"
 ```
 
+Mot de passe oublié (n'importe quel compte) : la commande demande le nouveau mot de passe deux fois
+et ferme toutes les sessions ouvertes de ce compte.
+
+```bash
+python -m app.cli reset-password --email admin@example.org
+```
+
 ```bash
 uvicorn app.main:create_app --factory --reload
 ```

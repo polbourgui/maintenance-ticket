@@ -76,4 +76,4 @@ filterwarnings = [
 
 [tool.coverage.run]
 source = ["app"]
-omit = ["app/cli.py"]
+omit = []
